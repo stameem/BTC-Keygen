@@ -1,8 +1,9 @@
 from nicegui import ui
 import requests, io, base64, qrcode
 from datetime import datetime
+import os
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = os.getenv("API_URL", "http://backend:8000")
 
 @ui.page('/')
 def home():
