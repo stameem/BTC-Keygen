@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: keygen
+spec:
+  replicas: 2   # run 2 pods for reliability
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: gcr.io/YOUR_PROJECT_ID/backend:latest   # <-- replace with your pushed image
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DB_HOST
+          value: mysql
+        - name: DB_USER
+          value: btcuser
+        - name: DB_PASS
+          value: btcpass
+        - name: DB_NAME
+          value: btcdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: keygen
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+  - port: 8000
+    targetPort: 8000
