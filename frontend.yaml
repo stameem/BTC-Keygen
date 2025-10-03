@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: keygen
+spec:
+  replicas: 2   # two pods for reliability
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: gcr.io/YOUR_PROJECT_ID/frontend:latest   # <-- replace with your pushed image
+        ports:
+        - containerPort: 8081
+        env:
+        - name: API_URL
+          value: http://backend:8000   # points to backend service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: keygen
+spec:
+  type: LoadBalancer
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 8081
