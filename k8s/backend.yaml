@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: gcr.io/YOUR_PROJECT_ID/backend:latest   # <-- replace with your pushed image
+        image: gcr.io/bitcoin-key-generator-471801/backend:latest
         ports:
         - containerPort: 8000
         env:
