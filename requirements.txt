@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+nicegui
+mysql-connector-python
+bitcoin
+qrcode
+reportlab
+requests
