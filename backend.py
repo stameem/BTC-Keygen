@@ -1,8 +1,6 @@
-# backend_nosql.py
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse, JSONResponse
-import io, requests, bitcoin, qrcode
-from datetime import datetime
+import io, requests, bitcoin, qrcode, mysql.connector, os
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
@@ -10,27 +8,72 @@ from datetime import datetime
 
 app = FastAPI()
 
-# in-memory storage instead of MySQL
-addresses = []   # list of {"id": int, "address": str, "generated_at": str}
+# --- Database helper ---
+def get_db_connection():
+    return mysql.connector.connect(
+        host=os.getenv("DB_HOST", "mysql"),      # "mysql" will be the K8s Service name
+        user=os.getenv("DB_USER", "btcuser"),
+        password=os.getenv("DB_PASS", "btcpass"),
+        database=os.getenv("DB_NAME", "btcdb"),
+    )
+
+# --- Routes ---
 
 @app.post("/generate")
 def generate_keys():
+    """Generate Bitcoin keypair and store in DB."""
     private_key = bitcoin.random_key()
     public_key = bitcoin.pubtoaddr(bitcoin.privtopub(private_key))
-    addresses.append({
-        "id": len(addresses) + 1,
-        "address": public_key,
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "private": private_key
-    })
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO public_addresses (address, private_key) VALUES (%s, %s)",
+        (public_key, private_key),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
     return {"private": private_key, "public": public_key}
+
 
 @app.get("/count")
 def get_count():
-    return {"count": len(addresses)}
+    """Return total number of addresses stored."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM public_addresses")
+    (count,) = cur.fetchone()
+    cur.close()
+    conn.close()
+    return {"count": count}
+
+
+@app.get("/history/{page}")
+def history(page: int = 0):
+    """Fetch paginated history of generated addresses."""
+    page_size = 100
+    offset = page * page_size
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT id, address, generated_at
+        FROM public_addresses
+        ORDER BY generated_at ASC
+        LIMIT %s OFFSET %s
+    """, (page_size, offset))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return {"rows": rows}
+
 
 @app.get("/balance/{address}")
 def check_balance(address: str):
+    """Fetch balance of a Bitcoin address from blockchain.info API."""
     try:
         url = f"https://blockchain.info/balance?active={address}"
         response = requests.get(url, timeout=10)
@@ -40,15 +83,10 @@ def check_balance(address: str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.get("/history/{page}")
-def history(page: int = 0):
-    page_size = 100
-    start = page * page_size
-    end = start + page_size
-    return {"rows": addresses[start:end]}
 
 @app.get("/download/{private}/{public}")
 def download_pdf(private: str, public: str):
+    """Generate a PDF with QR codes and key details."""
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -93,13 +131,9 @@ def download_pdf(private: str, public: str):
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, 100, "BITCOIN account holder: _____________________________________________")
 
-    c.setFont("Helvetica", 10)
-    c.drawString(50, 80, f"Public Key: {public}")
-    c.drawString(50, 65, f"Private Key: {private}")
-
     c.save()
     buffer.seek(0)
-    
+
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"bitcoin_keys_{timestamp}.pdf"
 
@@ -109,3 +143,13 @@ def download_pdf(private: str, public: str):
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+
+@app.get("/health")
+def health():
+    """Check DB connectivity."""
+    try:
+        conn = get_db_connection()
+        conn.close()
+        return {"status": "ok", "db": "connected"}
+    except Exception as e:
+        return {"status": "error", "db_error": str(e)}
