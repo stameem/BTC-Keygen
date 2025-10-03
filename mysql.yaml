@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-initdb
+  namespace: keygen
+data:
+  init.sql: |
+    -- Create database
+    CREATE DATABASE IF NOT EXISTS btcdb;
+
+    USE btcdb;
+
+    -- Create table for storing addresses
+    CREATE TABLE IF NOT EXISTS public_addresses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        address VARCHAR(255) NOT NULL,
+        private_key VARCHAR(255) NOT NULL,
+        generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create application user
+    CREATE USER IF NOT EXISTS 'btcuser'@'%' IDENTIFIED BY 'btcpass';
+    GRANT ALL PRIVILEGES ON btcdb.* TO 'btcuser'@'%';
+    FLUSH PRIVILEGES;
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: keygen
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: keygen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: rootpass
+        - name: MYSQL_DATABASE
+          value: btcdb
+        - name: MYSQL_USER
+          value: btcuser
+        - name: MYSQL_PASSWORD
+          value: btcpass
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: mysql-data
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+      - name: init-script
+        configMap:
+          name: mysql-initdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: keygen
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: mysql
