@@ -2,6 +2,10 @@ from nicegui import ui
 import requests, io, base64, qrcode
 from datetime import datetime
 import os
+#new
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+import requests, io
 
 API_URL = os.getenv("API_URL", "http://backend:8000")
 
@@ -53,9 +57,20 @@ def home():
         if not state["private"] or not state["public"]:
             ui.notify("Generate keys first!")
             return
-        url = f"{API_URL}/download/{state['private']}/{state['public']}"
+
+        # Use the new proxy route instead of direct backend URL
+        url = f"/download_proxy/{state['private']}/{state['public']}"
+
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         ui.download(url, filename=f"bitcoin_keys_{timestamp}.pdf")
+
+    #def download_pdf():
+    #   if not state["private"] or not state["public"]:
+    #        ui.notify("Generate keys first!")
+    #        return
+    #    url = f"{API_URL}/download/{state['private']}/{state['public']}"
+    #    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    #    ui.download(url, filename=f"bitcoin_keys_{timestamp}.pdf")
 
     # --- UI LAYOUT ---
     with ui.column().classes('w-full items-center'):
@@ -108,5 +123,19 @@ def history():
     ], rows=resp['rows'])
     ui.button('Back to Home', on_click=lambda: ui.navigate.to('/')).classes('mt-4')
 
+# Access FastAPI app instance inside NiceGUI
+app: FastAPI = ui.run_kwargs.get("app") if hasattr(ui, "run_kwargs") else ui.app
+
+@app.get("/download_proxy/{priv}/{pub}")
+def download_proxy(priv: str, pub: str):
+    """Proxy PDF download through frontend."""
+    backend_url = f"http://backend:8000/download/{priv}/{pub}"
+    response = requests.get(backend_url, stream=True)
+    return StreamingResponse(
+        io.BytesIO(response.content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=bitcoin_keys.pdf"}
+    )
 
 ui.run(title="Bitcoin Private Key Generator", port=8081)
+
