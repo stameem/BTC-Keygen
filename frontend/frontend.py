@@ -134,6 +134,7 @@ def download_proxy(priv: str, pub: str):
         headers={"Content-Disposition": "attachment; filename=bitcoin_keys.pdf"}
     )
 
-ui.run(title="Bitcoin Private Key Generator", port=8081)
+ui.run(title="Bitcoin Private Key Generator", host="0.0.0.0", port=8081)
+
 
 
