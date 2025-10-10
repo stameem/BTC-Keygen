@@ -1,4 +1,4 @@
-from nicegui import ui
+from nicegui import ui, app
 import requests, io, base64, qrcode
 from datetime import datetime
 import os
@@ -123,9 +123,6 @@ def history():
     ], rows=resp['rows'])
     ui.button('Back to Home', on_click=lambda: ui.navigate.to('/')).classes('mt-4')
 
-# Access FastAPI app instance inside NiceGUI
-app: FastAPI = ui.run_kwargs.get("app") if hasattr(ui, "run_kwargs") else ui.app
-
 @app.get("/download_proxy/{priv}/{pub}")
 def download_proxy(priv: str, pub: str):
     """Proxy PDF download through frontend."""
@@ -138,4 +135,5 @@ def download_proxy(priv: str, pub: str):
     )
 
 ui.run(title="Bitcoin Private Key Generator", port=8081)
+
 
