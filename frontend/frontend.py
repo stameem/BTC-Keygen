@@ -84,7 +84,7 @@ def home():
             ui.button('Download PDF', on_click=download_pdf).classes('bg-green-500 text-white')
 
         # Blockchain link (directly below buttons)
-        blockchain_link = ui.html('').classes('mb-4').style(
+        blockchain_link = ui.html('', sanitize=False)).classes('mb-4').style(
             'font-size:14px; padding:6px; border:1px solid #ccc; border-radius:4px; text-align:center;'
         )
         blockchain_link.visible = False
@@ -135,6 +135,7 @@ def download_proxy(priv: str, pub: str):
     )
 
 ui.run(title="Bitcoin Private Key Generator", host="0.0.0.0", port=8081)
+
 
 
 
