@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: gcr.io/bitcoin-key-generator-471801/backend:latest
+        image: gcr.io/bitcoin-keys-generator/keygen_backend:v1
         ports:
         - containerPort: 8000
         env:
