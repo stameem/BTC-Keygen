@@ -1,13 +1,14 @@
-from nicegui import ui, app
+from nicegui import ui
 import requests, io, base64, qrcode
 from datetime import datetime
 import os
-#new
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-import requests, io
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 
 API_URL = os.getenv("API_URL", "http://backend:8000")
+
 
 @ui.page('/')
 def home():
@@ -58,38 +59,78 @@ def home():
             ui.notify("Generate keys first!")
             return
 
-        # Use the new proxy route instead of direct backend URL
-        url = f"/download_proxy/{state['private']}/{state['public']}"
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            pdf_filename = f"bitcoin_keys_{timestamp}.pdf"
 
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        ui.download(url, filename=f"bitcoin_keys_{timestamp}.pdf")
+            # Create PDF directly in frontend
+            buffer = io.BytesIO()
+            c = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
 
-    #def download_pdf():
-    #   if not state["private"] or not state["public"]:
-    #        ui.notify("Generate keys first!")
-    #        return
-    #    url = f"{API_URL}/download/{state['private']}/{state['public']}"
-    #    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    #    ui.download(url, filename=f"bitcoin_keys_{timestamp}.pdf")
+            # Title
+            c.setFont("Helvetica-Bold", 18)
+            c.drawCentredString(width / 2, height - 80, "BITCOIN KEYPAIR")
+            y = height - 140
 
-    # --- UI LAYOUT ---
+            # Public Key Section
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, y, "PUBLIC KEY:")
+            qr_pub = qrcode.make(state["public"])
+            buf_pub = io.BytesIO()
+            qr_pub.save(buf_pub, format="PNG")
+            buf_pub.seek(0)
+            c.drawImage(ImageReader(buf_pub), 200, y - 250, width=250, height=250)
+
+            c.setFont("Helvetica", 10)
+            text_x = 225
+            text_y = y - 270
+            for line in [state["public"][i:i+70] for i in range(0, len(state["public"]), 70)]:
+                c.drawString(text_x, text_y, line)
+                text_y -= 12
+
+            # Private Key Section
+            y -= 310
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, y, "PRIVATE KEY:")
+            qr_priv = qrcode.make(state["private"])
+            buf_priv = io.BytesIO()
+            qr_priv.save(buf_priv, format="PNG")
+            buf_priv.seek(0)
+            c.drawImage(ImageReader(buf_priv), 200, y - 250, width=250, height=250)
+
+            c.setFont("Helvetica", 10)
+            text_x = 160
+            text_y = y - 270
+            for line in [state["private"][i:i+70] for i in range(0, len(state["private"]), 70)]:
+                c.drawString(text_x, text_y, line)
+                text_y -= 12
+
+            # Footer
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, 70, "BITCOIN account holder: _______________________________")
+
+            c.save()
+            buffer.seek(0)
+
+            ui.download(buffer.getvalue(), filename=pdf_filename)
+        except Exception as e:
+            ui.notify(f"Error generating PDF: {e}")
+
+    # --- UI Layout ---
     with ui.column().classes('w-full items-center'):
-        # Title
         ui.label('Bitcoin Private Key Generator').classes('text-3xl font-bold mb-6 text-center')
 
-        # Buttons row
         with ui.row().classes('mb-4 justify-center'):
             ui.button('Generate Keys', on_click=generate).classes('bg-purple-500 text-white')
             ui.button('Check Balance', on_click=check_balance).classes('bg-blue-500 text-white')
             ui.button('Download PDF', on_click=download_pdf).classes('bg-green-500 text-white')
 
-        # Blockchain link (directly below buttons)
-        blockchain_link = ui.html('', sanitize=False)).classes('mb-4').style(
+        blockchain_link = ui.html('', sanitize=False).classes('mb-4').style(
             'font-size:14px; padding:6px; border:1px solid #ccc; border-radius:4px; text-align:center;'
         )
         blockchain_link.visible = False
 
-        # QR codes with text under them
         with ui.row().classes('mb-6 justify-center'):
             with ui.column().classes('items-center'):
                 pub_qr = ui.image().style('width:220px; height:220px;').classes('border p-2')
@@ -102,7 +143,6 @@ def home():
 
         balance_label = ui.label('Balance: —').classes('text-lg mb-2 font-semibold text-green-600')
 
-        # Counter (initialize with backend count)
         try:
             count = requests.get(f"{API_URL}/count").json()["count"]
         except Exception:
@@ -123,19 +163,6 @@ def history():
     ], rows=resp['rows'])
     ui.button('Back to Home', on_click=lambda: ui.navigate.to('/')).classes('mt-4')
 
-@app.get("/download_proxy/{priv}/{pub}")
-def download_proxy(priv: str, pub: str):
-    """Proxy PDF download through frontend."""
-    backend_url = f"http://backend:8000/download/{priv}/{pub}"
-    response = requests.get(backend_url, stream=True)
-    return StreamingResponse(
-        io.BytesIO(response.content),
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=bitcoin_keys.pdf"}
-    )
 
 ui.run(title="Bitcoin Private Key Generator", host="0.0.0.0", port=8081)
-
-
-
 
