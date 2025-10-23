@@ -14,24 +14,26 @@ API_URL = os.getenv("API_URL", "http://backend:8000")
 def home():
     state = {"private": None, "public": None}
 
-    # --- FUNCTIONS ---
     def generate():
+
+        # Requesting to generate keys from backend
         resp = requests.post(f"{API_URL}/generate").json()
         state["private"] = resp["private"]
         state["public"] = resp["public"]
 
-        # update QR codes + text
+        # Generate public key and display in QR code
         buf_pub = io.BytesIO()
         qrcode.make(state["public"]).save(buf_pub, format='PNG')
         pub_qr.set_source(f"data:image/png;base64,{base64.b64encode(buf_pub.getvalue()).decode()}")
         pub_label.text = f"Public Key: {state['public']}"
-
+        
+        # Generate Private key and display in QR code
         buf_priv = io.BytesIO()
         qrcode.make(state["private"]).save(buf_priv, format='PNG')
         priv_qr.set_source(f"data:image/png;base64,{base64.b64encode(buf_priv.getvalue()).decode()}")
         priv_label.text = f"Private Key: {state['private']}"
 
-        # blockchain link
+        # blockchain explorer link
         blockchain_link.content = (
             f'<a href="https://www.blockchain.com/btc/address/{state["public"]}" '
             f'target="_blank" style="color:blue; text-decoration:underline;">'
@@ -40,12 +42,13 @@ def home():
         blockchain_link.visible = True
         blockchain_link.update()
 
-        # update counter
+        # update the public key generated counter
         count = requests.get(f"{API_URL}/count").json()["count"]
         counter_label.text = f"Total Addresses Generated: {count}"
 
         balance_label.text = "Balance: Not checked"
 
+    # Check bitcoin balance
     def check_balance():
         if not state["public"]:
             ui.notify("Generate keys first!")
@@ -54,6 +57,7 @@ def home():
         balance = resp.get("balance", "Error")
         balance_label.text = f"Balance: {balance} BTC"
 
+    # Pdf download
     def download_pdf():
         if not state["private"] or not state["public"]:
             ui.notify("Generate keys first!")
@@ -62,18 +66,17 @@ def home():
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             pdf_filename = f"bitcoin_keys_{timestamp}.pdf"
-
-            # Create PDF directly in frontend
+            
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
 
-            # Title
+            # Title of the PDF
             c.setFont("Helvetica-Bold", 18)
             c.drawCentredString(width / 2, height - 80, "BITCOIN KEYPAIR")
             y = height - 140
 
-            # Public Key Section
+            # Public Key with QR
             c.setFont("Helvetica-Bold", 14)
             c.drawString(50, y, "PUBLIC KEY:")
             qr_pub = qrcode.make(state["public"])
@@ -89,7 +92,7 @@ def home():
                 c.drawString(text_x, text_y, line)
                 text_y -= 12
 
-            # Private Key Section
+            # Private key with QR
             y -= 310
             c.setFont("Helvetica-Bold", 14)
             c.drawString(50, y, "PRIVATE KEY:")
@@ -99,6 +102,7 @@ def home():
             buf_priv.seek(0)
             c.drawImage(ImageReader(buf_priv), 200, y - 250, width=250, height=250)
 
+            
             c.setFont("Helvetica", 10)
             text_x = 160
             text_y = y - 270
@@ -106,7 +110,7 @@ def home():
                 c.drawString(text_x, text_y, line)
                 text_y -= 12
 
-            # Footer
+            # Footer of the PDF
             c.setFont("Helvetica-Bold", 12)
             c.drawString(50, 70, "BITCOIN account holder: _______________________________")
 
@@ -117,20 +121,23 @@ def home():
         except Exception as e:
             ui.notify(f"Error generating PDF: {e}")
 
-    # --- UI Layout ---
+    # UI Layout
     with ui.column().classes('w-full items-center'):
         ui.label('Bitcoin Private Key Generator').classes('text-3xl font-bold mb-6 text-center')
-
+        
+        # Three Buttons
         with ui.row().classes('mb-4 justify-center'):
             ui.button('Generate Keys', on_click=generate).classes('bg-purple-500 text-white')
             ui.button('Check Balance', on_click=check_balance).classes('bg-blue-500 text-white')
             ui.button('Download PDF', on_click=download_pdf).classes('bg-green-500 text-white')
 
+        # Block_chain link
         blockchain_link = ui.html('', sanitize=False).classes('mb-4').style(
             'font-size:14px; padding:6px; border:1px solid #ccc; border-radius:4px; text-align:center;'
         )
         blockchain_link.visible = False
 
+        #Displaying QR code for public and private keys
         with ui.row().classes('mb-6 justify-center'):
             with ui.column().classes('items-center'):
                 pub_qr = ui.image().style('width:220px; height:220px;').classes('border p-2')
@@ -141,6 +148,8 @@ def home():
                 ui.label('Private Key QR').classes('mt-1 text-center')
                 priv_label = ui.label('').classes('text-sm mt-2 break-all text-center')
 
+        # Balance and counter
+        
         balance_label = ui.label('Balance: —').classes('text-lg mb-2 font-semibold text-green-600')
 
         try:
@@ -148,13 +157,16 @@ def home():
         except Exception:
             count = 0
         counter_label = ui.label(f"Total Addresses Generated: {count}")
-
+        
+        # Directing to history page
         ui.button('Show History', on_click=lambda: ui.navigate.to('/history')).classes('bg-gray-500 text-white mt-4')
 
 
 @ui.page('/history')
 def history():
     ui.label('Address History').classes('text-2xl font-bold mb-6')
+
+    # Fetch and display generated public key
     resp = requests.get(f"{API_URL}/history/0").json()
     ui.table(columns=[
         {'name': 'id', 'label': 'ID', 'field': 'id'},
@@ -163,6 +175,7 @@ def history():
     ], rows=resp['rows'])
     ui.button('Back to Home', on_click=lambda: ui.navigate.to('/')).classes('mt-4')
 
-
+# Launch the app
 ui.run(title="Bitcoin Private Key Generator", host="0.0.0.0", port=8081)
+
 
