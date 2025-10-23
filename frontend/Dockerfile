@@ -1,7 +1,7 @@
 # Frontend for NiceGUI service
 FROM python:3.11-slim
 
-# Set working directory
+# Setting work directory
 WORKDIR /app
 
 # Installing system dependencies
@@ -12,14 +12,14 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
+# Installing Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy frontend code
+# Copying frontend code
 COPY frontend.py .
 
-# Expose frontend port
+# Exposing frontend port
 EXPOSE 8081
 
-# Run NiceGUI frontend
+# Running NiceGUI frontend
 CMD ["python", "frontend.py"]
