@@ -5,12 +5,10 @@ metadata:
   namespace: keygen
 data:
   init.sql: |
-    -- Create database
     CREATE DATABASE IF NOT EXISTS btcdb;
 
     USE btcdb;
 
-    -- Create table for storing addresses
     CREATE TABLE IF NOT EXISTS public_addresses (
         id INT AUTO_INCREMENT PRIMARY KEY,
         address VARCHAR(255) NOT NULL,
@@ -18,7 +16,6 @@ data:
         generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Create application user
     CREATE USER IF NOT EXISTS 'btcuser'@'%' IDENTIFIED BY 'btcpass';
     GRANT ALL PRIVILEGES ON btcdb.* TO 'btcuser'@'%';
     FLUSH PRIVILEGES;
