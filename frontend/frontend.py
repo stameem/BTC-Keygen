@@ -158,7 +158,7 @@ def home():
             count = 0
         counter_label = ui.label(f"Total Addresses Generated: {count}")
         
-        # Directing to history page
+        # Button directing to the history page
         ui.button('Show History', on_click=lambda: ui.navigate.to('/history')).classes('bg-gray-500 text-white mt-4')
 
 
@@ -166,7 +166,7 @@ def home():
 def history():
     ui.label('Address History').classes('text-2xl font-bold mb-6')
 
-    # Fetch and display generated public key
+    # Fetch and display the generated public key
     resp = requests.get(f"{API_URL}/history/0").json()
     ui.table(columns=[
         {'name': 'id', 'label': 'ID', 'field': 'id'},
@@ -177,5 +177,6 @@ def history():
 
 # Launch the app
 ui.run(title="Bitcoin Private Key Generator", host="0.0.0.0", port=8081)
+
 
 
