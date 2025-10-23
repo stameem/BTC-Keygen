@@ -4,7 +4,7 @@ metadata:
   name: backend
   namespace: keygen
 spec:
-  replicas: 2   # run 2 pods for reliability
+  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: gcr.io/bitcoin-keys-generator/keygen_backend:v1
+        image: us-central1-docker.pkg.dev/bitcoin-keys-generator/keygen-repo/backend:latest
         ports:
         - containerPort: 8000
         env:
