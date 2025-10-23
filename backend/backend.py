@@ -3,22 +3,21 @@ from fastapi.responses import JSONResponse
 import requests, bitcoin, mysql.connector, os
 from datetime import datetime
 
+# Initialising API
 app = FastAPI()
 
-# --- Database helper ---
+# Connect to Database with its credentials
 def get_db_connection():
     return mysql.connector.connect(
-        host=os.getenv("DB_HOST", "mysql"),      # "mysql" = service name in K8s
+        host=os.getenv("DB_HOST", "mysql"),
         user=os.getenv("DB_USER", "btcuser"),
         password=os.getenv("DB_PASS", "btcpass"),
         database=os.getenv("DB_NAME", "btcdb"),
     )
 
-# --- Routes ---
-
+# Generate bitcoin keys and store in Database
 @app.post("/generate")
 def generate_keys():
-    """Generate Bitcoin keypair and store in DB."""
     private_key = bitcoin.random_key()
     public_key = bitcoin.pubtoaddr(bitcoin.privtopub(private_key))
 
@@ -35,9 +34,9 @@ def generate_keys():
     return {"private": private_key, "public": public_key}
 
 
+# It returns the count of public address generated
 @app.get("/count")
 def get_count():
-    """Return total number of addresses stored."""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM public_addresses")
@@ -47,9 +46,9 @@ def get_count():
     return {"count": count}
 
 
+# Shows history of last 100 public address generated
 @app.get("/history/{page}")
 def history(page: int = 0):
-    """Fetch paginated history of generated addresses."""
     page_size = 100
     offset = page * page_size
 
@@ -67,10 +66,9 @@ def history(page: int = 0):
 
     return {"rows": rows}
 
-
+# It fetches bitcoin balance using API from blockchain.info
 @app.get("/balance/{address}")
 def check_balance(address: str):
-    """Fetch balance of a Bitcoin address from blockchain.info API."""
     try:
         url = f"https://blockchain.info/balance?active={address}"
         response = requests.get(url, timeout=10)
@@ -80,13 +78,13 @@ def check_balance(address: str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-
+# Check wether Database is connected
 @app.get("/health")
 def health():
-    """Check DB connectivity."""
     try:
         conn = get_db_connection()
         conn.close()
         return {"status": "ok", "db": "connected"}
     except Exception as e:
         return {"status": "error", "db_error": str(e)}
+
