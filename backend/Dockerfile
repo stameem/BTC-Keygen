@@ -1,7 +1,7 @@
 # Backend Dockerfile for FastAPI service
 FROM python:3.11-slim
 
-# Set working directory
+# Setting work directory
 WORKDIR /app
 
 # Installing system dependencies
@@ -9,16 +9,16 @@ RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev gcc libjpeg-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copying requirements
 COPY requirements.txt .
 
-# Install Python dependencies
+# Installing Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
+# Copying backend code
 COPY backend.py .
 
-# Expose backend port
+# Exposing backend port
 EXPOSE 8000
 
 # Run FastAPI with Uvicorn
